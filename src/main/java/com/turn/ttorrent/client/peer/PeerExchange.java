@@ -305,7 +305,7 @@ class PeerExchange {
 
 		@Override
 		public void run() {
-			ByteBuffer buffer = ByteBuffer.allocateDirect(1*1024*1024);
+			ByteBuffer buffer = ByteBuffer.allocate(1*1024*1024);
 			Selector selector = null;
 
 			try {
