@@ -79,15 +79,15 @@ public class ConnectionHandler implements Runnable {
 	private static final Logger logger =
 		LoggerFactory.getLogger(ConnectionHandler.class);
 
-	public static final int PORT_RANGE_START = 6881;
-	public static final int PORT_RANGE_END = 6889;
+    private static final int OUTBOUND_CONNECTIONS_POOL_SIZE = 20;
 
-	private static final int OUTBOUND_CONNECTIONS_POOL_SIZE = 20;
-	private static final int OUTBOUND_CONNECTIONS_THREAD_KEEP_ALIVE_SECS = 10;
-
+    private static final int OUTBOUND_CONNECTIONS_THREAD_KEEP_ALIVE_SECS = 10;
 	private static final int CLIENT_KEEP_ALIVE_MINUTES = 3;
 
-	private SharedTorrent torrent;
+    private static int portRangeStart = 6881;
+    private static int portRangeEnd = 6889;
+
+    private SharedTorrent torrent;
 	private String id;
 	private ServerSocketChannel channel;
 	private InetSocketAddress address;
@@ -97,7 +97,7 @@ public class ConnectionHandler implements Runnable {
 	private Thread thread;
 	private boolean stop;
 
-	/**
+    /**
 	 * Create and start a new listening service for out torrent, reporting
 	 * with our peer ID on the given address.
 	 *
@@ -119,8 +119,8 @@ public class ConnectionHandler implements Runnable {
 
 		// Bind to the first available port in the range
 		// [PORT_RANGE_START; PORT_RANGE_END].
-		for (int port = ConnectionHandler.PORT_RANGE_START;
-				port <= ConnectionHandler.PORT_RANGE_END;
+        for (int port = portRangeStart;
+				port <= portRangeEnd;
 				port++) {
 			InetSocketAddress tryAddress =
 				new InetSocketAddress(address, port);
