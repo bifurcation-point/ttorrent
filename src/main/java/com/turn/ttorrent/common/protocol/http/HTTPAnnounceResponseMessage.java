@@ -29,6 +29,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -98,7 +99,13 @@ public class HTTPAnnounceResponseMessage extends HTTPTrackerMessage
 			try {
 				// First attempt to decode a compact response, since we asked
 				// for it.
-				peers = toPeerList(params.get("peers").getBytes());
+				peers = toPeerList(params.get("peers").getBytes(), 4);
+
+                final BEValue peers6Value = params.get("peers6");
+                if (peers6Value != null) {
+                    List<Peer> peers6 = toPeerList(peers6Value.getBytes(), 16);
+                    peers.addAll(peers6);
+                }
 			} catch (InvalidBEncodingException ibee) {
 				// Fall back to peer list, non-compact response, in case the
 				// tracker did not support compact responses.
@@ -151,30 +158,30 @@ public class HTTPAnnounceResponseMessage extends HTTPTrackerMessage
 	 * @return A {@link List} of {@link Peer}s representing the
 	 * peers' addresses. Peer IDs are lost, but they are not crucial.
 	 */
-	private static List<Peer> toPeerList(byte[] data)
-		throws InvalidBEncodingException, UnknownHostException {
-		if (data.length % 6 != 0) {
-			throw new InvalidBEncodingException("Invalid peers " +
-				"binary information string!");
-		}
+    private static List<Peer> toPeerList(byte[] data, int ipAddressLength)
+            throws InvalidBEncodingException, UnknownHostException {
+        if (data.length % (ipAddressLength + 2) != 0) {
+            throw new InvalidBEncodingException("Invalid peers " +
+                    "binary information string!");
+        }
 
-		List<Peer> result = new LinkedList<Peer>();
-		ByteBuffer peers = ByteBuffer.wrap(data);
+        List<Peer> result = new LinkedList<Peer>();
+        ByteBuffer peers = ByteBuffer.wrap(data);
 
-		for (int i=0; i < data.length / 6 ; i++) {
-			byte[] ipBytes = new byte[4];
-			peers.get(ipBytes);
-			InetAddress ip = InetAddress.getByAddress(ipBytes);
-			int port =
-				(0xFF & (int)peers.get()) << 8 |
-				(0xFF & (int)peers.get());
-			result.add(new Peer(new InetSocketAddress(ip, port)));
-		}
+        for (int i=0; i < data.length / (ipAddressLength + 2) ; i++) {
+            byte[] ipBytes = new byte[ipAddressLength];
+            peers.get(ipBytes);
+            InetAddress ip = InetAddress.getByAddress(ipBytes);
+            int port =
+                    (0xFF & (int)peers.get()) << 8 |
+                            (0xFF & (int)peers.get());
+            result.add(new Peer(new InetSocketAddress(ip, port)));
+        }
 
-		return result;
-	}
+        return result;
+    }
 
-	/**
+    /**
 	 * Craft a compact announce response message.
 	 *
 	 * @param interval
@@ -192,16 +199,36 @@ public class HTTPAnnounceResponseMessage extends HTTPTrackerMessage
 		response.put("complete", new BEValue(complete));
 		response.put("incomplete", new BEValue(incomplete));
 
-		ByteBuffer data = ByteBuffer.allocate(peers.size() * 6);
-		for (Peer peer : peers) {
+        // BEP-7
+        ArrayList<Peer> peers4 = new ArrayList<Peer>();
+        ArrayList<Peer> peers6 = new ArrayList<Peer>();
+        for (Peer peer : peers) {
+            byte[] ip = peer.getRawIp();
+            if (ip == null) continue;
+
+            if (ip.length == 4) {
+                peers4.add(peer);
+            }
+            else if (ip.length == 16) {
+                peers6.add(peer);
+            }
+        }
+
+		ByteBuffer data4 = ByteBuffer.allocate(peers4.size() * 6);
+		for (Peer peer : peers4) {
 			byte[] ip = peer.getRawIp();
-			if (ip == null || ip.length != 4) {
-				continue;
-			}
-			data.put(ip);
-			data.putShort((short)peer.getPort());
+			data4.put(ip);
+			data4.putShort((short)peer.getPort());
 		}
-		response.put("peers", new BEValue(data.array()));
+		response.put("peers", new BEValue(data4.array()));
+
+		ByteBuffer data6 = ByteBuffer.allocate(peers6.size() * 18);
+		for (Peer peer : peers6) {
+			byte[] ip = peer.getRawIp();
+			data6.put(ip);
+			data6.putShort((short)peer.getPort());
+		}
+		response.put("peers6", new BEValue(data6.array()));
 
 		return new HTTPAnnounceResponseMessage(
 			BEncoder.bencode(response),
