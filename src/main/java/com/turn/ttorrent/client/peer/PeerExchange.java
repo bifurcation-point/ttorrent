@@ -74,12 +74,13 @@ import org.slf4j.LoggerFactory;
  */
 class PeerExchange {
 
-	private static final Logger logger =
+    private static final Logger logger =
 		LoggerFactory.getLogger(PeerExchange.class);
 
 	private static final int KEEP_ALIVE_IDLE_MINUTES = 2;
+    private static final int SEND_QUEUE_CAPACITY = 64;
 
-	private SharingPeer peer;
+    private SharingPeer peer;
 	private SharedTorrent torrent;
 	private SocketChannel channel;
 
@@ -104,7 +105,7 @@ class PeerExchange {
 		this.channel = channel;
 
 		this.listeners = new HashSet<MessageListener>();
-		this.sendQueue = new LinkedBlockingQueue<PeerMessage>();
+		this.sendQueue = new LinkedBlockingQueue<PeerMessage>(SEND_QUEUE_CAPACITY);
 
 		if (!this.peer.hasPeerId()) {
 			throw new IllegalStateException("Peer does not have a " +
