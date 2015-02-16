@@ -74,11 +74,11 @@ public class SharingPeer extends Peer implements MessageListener {
 
 	private static final int MAX_PIPELINED_REQUESTS = 5;
 
-	private boolean choking;
-	private boolean interesting;
+	private volatile boolean choking;
+	private volatile boolean interesting;
 
-	private boolean choked;
-	private boolean interested;
+	private volatile boolean choked;
+	private volatile boolean interested;
 
 	private SharedTorrent torrent;
 	private BitSet availablePieces;
